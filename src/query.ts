@@ -3,7 +3,7 @@
  * Import failure is surfaced as unavailable — detect must not report ready.
  */
 import { spawnSync } from "node:child_process";
-import { buildClaudeCodeChildEnv } from "./auth-env.js";
+import { buildClaudeCodeChildEnv, settingsEnv } from "./auth-env.js";
 import { isClaudeEffort, type ClaudeEffort } from "./constants.js";
 import {
   assertClaudeWorkingDirectory,
@@ -353,6 +353,9 @@ export async function startClaudeQuery(
   }
 
   const env = buildClaudeCodeChildEnv(params.env || process.env);
+  if (Array.isArray(params.settingSources) && params.settingSources.length === 0) {
+    Object.assign(env, settingsEnv(env.CLAUDE_CONFIG_DIR));
+  }
   const cwd = assertClaudeWorkingDirectory(params.cwd);
   const pathToClaudeCodeExecutable =
     trimmedString(params.pathToClaudeCodeExecutable) ||

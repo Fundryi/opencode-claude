@@ -42,6 +42,7 @@ import {
 } from "./models.js";
 import { listClaudeSupportedModels } from "./query.js";
 import { closeSessionBridges } from "./bridge-pool.js";
+import { updateAgentSdk } from "./sdk-update.js";
 import {
   getClaudeProxyBaseUrl,
   acquireProxy,
@@ -280,6 +281,7 @@ export const ClaudeCodePlugin: Plugin.Plugin = {
     if (cliPresent) {
       void refreshModelCatalog(() => ctx.provider.reload());
     }
+    void updateAgentSdk();
 
     await ctx.integration.transform((integrations) => {
       for (const registration of buildAuthMethods(cliPresent, directory)) {

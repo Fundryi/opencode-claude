@@ -2,6 +2,24 @@
  * Subscription-only child env for Claude Code (from OpenChamber harness).
  * Never log env values — this module only returns sanitized copies.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { claudeConfigDir } from "./config-dir.js";
+
+export function settingsEnv(configDir?: string): Record<string, string> {
+  try {
+    const settings = JSON.parse(
+      readFileSync(join(claudeConfigDir(configDir), "settings.json"), "utf8"),
+    );
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(settings?.env ?? {})) {
+      if (typeof value === "string" && value.trim()) out[key] = value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 /** Credential overrides removed so Claude Code uses its own login store. */
 export const AUTH_OVERRIDE_ENV_KEYS = Object.freeze([

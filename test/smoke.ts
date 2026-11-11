@@ -1183,6 +1183,11 @@ async function main() {
   // Title meta requests use a constrained, tool-free Agent SDK turn.
   {
     const { setClaudeQueryStarter } = await import("../src/proxy.ts");
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(
+      `${process.env.CLAUDE_CONFIG_DIR}/settings.json`,
+      JSON.stringify({ env: { SMOKE_SETTINGS_ENV: "from-settings", SMOKE_EMPTY: " " } }),
+    );
     let titleOptions: Record<string, unknown> | null = null;
     setClaudeQueryStarter(async (params) => {
       titleOptions = params as unknown as Record<string, unknown>;
@@ -1241,9 +1246,14 @@ async function main() {
         (titleOptions!.env as Record<string, unknown>).CLAUDE_CODE_DISABLE_AUTO_MEMORY,
         "1",
       );
+      assert.equal(
+        (titleOptions!.env as Record<string, unknown>).SMOKE_SETTINGS_ENV,
+        "from-settings",
+      );
+      assert.equal((titleOptions!.env as Record<string, unknown>).SMOKE_EMPTY, undefined);
       assert.deepEqual(titleOptions!.skills, []);
       assert.equal(titleOptions!.maxTurns, 1);
-      assert.equal(titleOptions!.model, "claude-haiku-4-5");
+      assert.equal(titleOptions!.model, "haiku");
       assert.equal(titleOptions!.effort, undefined);
       assert.equal(titleOptions!.persistSession, false);
       assert.equal(titleOptions!.isolateMcp, true);

@@ -4,8 +4,8 @@
 [![GitHub release](https://img.shields.io/github/v/release/openchamber/opencode-claude?style=flat&labelColor=100F0F&color=205EA6)](https://github.com/openchamber/opencode-claude/releases/latest)
 [![Discord](https://img.shields.io/badge/Discord-join.svg?style=flat&labelColor=100F0F&color=8B7EC8&logo=discord&logoColor=FFFCF0)](https://discord.gg/ZYRSdnwwKA)
 
-> [!IMPORTANT]
-> **This plugin is no longer needed.** OpenCode 2.2.3 and later support Claude Code natively. Switch to the built-in provider and remove `@openchamber/opencode-claude` from your config. The repository is archived; the npm package stays available for a transition period.
+> [!NOTE]
+> Maintained fork of the archived [openchamber/opencode-claude](https://github.com/openchamber/opencode-claude). Unlike OpenCode's built-in Claude Code provider, it runs Claude Code with your own setup: settings, `CLAUDE.md`, hooks, output style and plugins.
 [![License](https://img.shields.io/badge/license-MIT-black?style=flat&labelColor=100F0F&color=EC8B49)](LICENSE)
 
 Use your Claude Pro or Max plan in [OpenCode](https://opencode.ai) and [OpenChamber](https://github.com/openchamber/openchamber).
@@ -149,6 +149,7 @@ Most people won't need these. Set them in the environment of the OpenCode server
 | Variable | What it does |
 | --- | --- |
 | `OPENCODE_CLAUDE_DEBUG=1` | Same as the `debug` option above |
+| `OPENCODE_CLAUDE_SDK_UPDATE=0` | Stop the automatic Claude Agent SDK update. A plugin installed from a local folder checks npm at every start and installs a newer SDK with `bun`, without the bundled Claude Code binary; it is used after the next restart |
 | `OPENCODE_CLAUDE_PROXY_PORT` | Fixed port for the local proxy (default: any free port) |
 | `OPENCODE_CLAUDE_CWD` | Working directory for Claude Code, if you need to override the project folder |
 | `OPENCODE_CLAUDE_HISTORY_MAX_CHARS` | How much history to replay when a Claude session can't be resumed (default 400000, `0` turns it off) |

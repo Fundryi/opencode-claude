@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.7.1 - 2026-11-11
+
+- **Titles and summaries work with a custom endpoint**: title, summary and
+  generate requests start Claude Code without setting sources, so the `env`
+  block of `~/.claude/settings.json` (for example `ANTHROPIC_BASE_URL` and
+  `ANTHROPIC_AUTH_TOKEN`) never loaded and they failed with "Not logged in".
+  The plugin now passes that block in.
+- **Titles use the `haiku` alias**: gateways that route by model id rejected
+  the old dated id. The alias always means the newest Haiku.
+- **The Claude Agent SDK updates itself**: a plugin installed from a local
+  folder checks npm at every start and installs a newer SDK in the
+  background, used after the next restart. It skips the bundled Claude Code
+  binary, since the plugin runs your own `claude`. `OPENCODE_CLAUDE_SDK_UPDATE=0`
+  turns it off.
+- Maintained fork: the npm package is now `@fundryi/opencode-claude`.
+
 ## 1.7.0 - 2026-10-30
 
 - **Background compaction works with Claude**: with OpenCode's

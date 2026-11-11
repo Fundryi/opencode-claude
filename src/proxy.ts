@@ -27,7 +27,7 @@ import {
   type ParkedBridge,
   type ParkedToolCall,
 } from "./bridge-pool.js";
-import { buildClaudeCodeChildEnv, MCP_DESCRIPTION_LIMIT } from "./auth-env.js";
+import { buildClaudeCodeChildEnv, MCP_DESCRIPTION_LIMIT, settingsEnv } from "./auth-env.js";
 import {
   classifyClaudeFailure,
   failureCodeFor,
@@ -590,7 +590,7 @@ function selectionFromRequest(
   return { modelId, ...(effort ? { effort } : {}) };
 }
 
-const META_REQUEST_MODEL = "claude-haiku-4-5";
+const META_REQUEST_MODEL = "haiku";
 
 type ClaudeSystemPrompt = {
   type: "preset";
@@ -1130,6 +1130,7 @@ async function startNewTurn(input: {
   // came back naming an unrelated project from a memory line. A summary that
   // resumes the chat's session keeps it, like the chat turn it continues.
   if (isMetaRequest && !summaryResume) env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = "1";
+  if (isMetaRequest) Object.assign(env, settingsEnv(configDir));
   const directoryHeader = req.headers.get(DIRECTORY_HEADER)?.trim();
   const requestDirectory = directoryHeader
     ? decodeURIComponent(directoryHeader)
