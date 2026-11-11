@@ -86,12 +86,9 @@ export type SdkModelRow = {
  * offered.
  */
 const ONE_M_FAMILIES: Array<{ match: RegExp; mode: "default" | "optional" | "fixed" }> = [
-  { match: /^claude-fable-5/, mode: "fixed" },
-  { match: /^claude-opus-5/, mode: "fixed" },
+  { match: /^claude-[a-z]+-5/, mode: "fixed" },
   { match: /^claude-opus-4-[78]/, mode: "fixed" },
   { match: /^claude-opus-4-6/, mode: "optional" },
-  { match: /^claude-sonnet-5/, mode: "fixed" },
-  { match: /^claude-haiku-5/, mode: "fixed" },
 ];
 
 /**
@@ -116,7 +113,9 @@ export function modelsFromSdk(rows: SdkModelRow[]): ClaudeModel[] {
   const out: ClaudeModel[] = [];
   for (const row of rows) {
     const value = typeof row?.value === "string" ? row.value.trim() : "";
-    if (!value || value === "default") continue;
+    if (!value || value === "default" || value.includes("/")) continue;
+    const concrete = (row.resolvedModel || value).replace(/\[1m\]$/i, "");
+    if (/^claude-/i.test(concrete) && !modelNameFromId(concrete)) continue;
     const efforts = (row.supportedEffortLevels ?? []).filter(isClaudeEffort);
     const name =
       modelNameFromId(row.resolvedModel) ??

@@ -562,6 +562,10 @@ async function main() {
       { value: "haiku", displayName: "Haiku 4.5", resolvedModel: "claude-haiku-4-5-20251001" },
       { value: "claude-opus-4-6", displayName: "Opus 4.6", resolvedModel: "claude-opus-4-6" },
       { value: "claude-sonnet-4-6", displayName: "Sonnet 4.6", resolvedModel: "claude-sonnet-4-6" },
+      { value: "claude-mythos-5-2", resolvedModel: "claude-mythos-5-2", supportedEffortLevels: ["low", "high"] },
+      { value: "cc/claude-mythos-5-2", resolvedModel: "cc/claude-mythos-5-2" },
+      { value: "claude-opus-5-5-high", resolvedModel: "claude-opus-5-5-high" },
+      { value: "claude-mem-haiku-api", resolvedModel: "claude-mem-haiku-api" },
     ]);
     const byId = Object.fromEntries(fromCli.map((m) => [m.id, m]));
     assert.deepEqual(
@@ -574,8 +578,12 @@ async function main() {
         "claude-opus-4-6",
         "claude-opus-4-6[1m]",
         "claude-sonnet-4-6",
+        "claude-mythos-5-2",
       ],
+      "gateway-prefixed, effort-suffixed and non-model ids are dropped",
     );
+    assert.equal(byId["claude-mythos-5-2"]!.contextWindow, 1_000_000);
+    assert.equal(byId["claude-mythos-5-2"]!.name, "Mythos 5.2");
     // Opus 5.5 runs at 1M under its plain id: no [1m] variant.
     assert.equal(byId["claude-opus-5-5"]!.contextWindow, 1_000_000);
     assert.equal(byId["claude-opus-5-5"]!.name, "Opus 5.5");

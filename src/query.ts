@@ -3,7 +3,7 @@
  * Import failure is surfaced as unavailable — detect must not report ready.
  */
 import { spawnSync } from "node:child_process";
-import { buildClaudeCodeChildEnv, settingsEnv } from "./auth-env.js";
+import { buildClaudeCodeChildEnv, gatewayProbeEnv, probeSettingsEnv, settingsEnv } from "./auth-env.js";
 import { isClaudeEffort, type ClaudeEffort } from "./constants.js";
 import {
   assertClaudeWorkingDirectory,
@@ -580,6 +580,20 @@ export async function startClaudeQuery(
 export async function listClaudeSupportedModels(
   timeoutMs = 20_000,
 ): Promise<unknown[] | null> {
+  const gateway = gatewayProbeEnv(process.env);
+  if (!Object.keys(gateway).length) return probeSupportedModels({}, timeoutMs);
+  const [own, discovered] = await Promise.all([
+    probeSupportedModels({}, timeoutMs),
+    probeSupportedModels(gateway, timeoutMs),
+  ]);
+  if (!own && !discovered) return null;
+  return [...(own ?? []), ...(discovered ?? [])];
+}
+
+async function probeSupportedModels(
+  extraEnv: Record<string, string>,
+  timeoutMs: number,
+): Promise<unknown[] | null> {
   const sdk = await loadClaudeAgentSdk();
   const queryFn = (sdk as { query?: Function }).query;
   if (typeof queryFn !== "function") return null;
@@ -589,7 +603,7 @@ export async function listClaudeSupportedModels(
       release = resolve;
     });
   })();
-  const env = buildClaudeCodeChildEnv(process.env);
+  const env = { ...buildClaudeCodeChildEnv(process.env), ...probeSettingsEnv(), ...extraEnv };
   const pathToClaudeCodeExecutable = await resolveClaudeCodeExecutable({ env });
   const q = queryFn({
     prompt: idle,

@@ -21,6 +21,54 @@ export function settingsEnv(configDir?: string): Record<string, string> {
   }
 }
 
+const GATEWAY_CREDENTIAL_KEYS = ["ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"] as const;
+const PROBE_EXCLUDED_KEYS = new Set([
+  "ANTHROPIC_BASE_URL",
+  "ANTHROPIC_AUTH_TOKEN",
+  "ANTHROPIC_API_KEY",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "ANTHROPIC_MODEL",
+  "ANTHROPIC_SMALL_FAST_MODEL",
+  "CLAUDE_CODE_SUBAGENT_MODEL",
+]);
+
+export function probeSettingsEnv(configDir?: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(settingsEnv(configDir))) {
+    if (PROBE_EXCLUDED_KEYS.has(key) || /^ANTHROPIC_DEFAULT_\w+_MODEL$/.test(key)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function isAnthropicEndpoint(baseURL: string): boolean {
+  try {
+    const host = new URL(baseURL).hostname.toLowerCase();
+    return host === "anthropic.com" || host.endsWith(".anthropic.com");
+  } catch {
+    return true;
+  }
+}
+
+export function gatewayProbeEnv(
+  baseEnv: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
+  configDir?: string,
+): Record<string, string> {
+  const fromSettings = settingsEnv(configDir);
+  const pick = (key: string) => fromSettings[key] ?? baseEnv[key]?.trim() ?? "";
+  const baseURL = pick("ANTHROPIC_BASE_URL");
+  if (!baseURL || isAnthropicEndpoint(baseURL)) return {};
+  const out: Record<string, string> = {
+    ANTHROPIC_BASE_URL: baseURL,
+    CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY: "1",
+  };
+  for (const key of GATEWAY_CREDENTIAL_KEYS) {
+    const value = pick(key);
+    if (value) out[key] = value;
+  }
+  return out;
+}
+
 /** Credential overrides removed so Claude Code uses its own login store. */
 export const AUTH_OVERRIDE_ENV_KEYS = Object.freeze([
   "ANTHROPIC_API_KEY",

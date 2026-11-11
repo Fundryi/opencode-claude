@@ -2,6 +2,19 @@
 
 ## 1.7.1 - 2026-11-11
 
+- **Gateway models in the picker**: when `ANTHROPIC_BASE_URL` (environment or
+  the `env` block of `~/.claude/settings.json`) points at a gateway instead of
+  Anthropic, the model list adds the gateway's own Claude models (its
+  `/v1/models`, through Claude Code's gateway model discovery) to the normal
+  lineup. Prefixed and per-effort ids are left out. Without a gateway the list
+  is unchanged.
+- **The model list follows your Claude Code settings**: it reads the `env`
+  block of `~/.claude/settings.json` (for example
+  `CLAUDE_CODE_DISABLE_FAST_MODE` hides the Fast entries). Model overrides
+  such as `ANTHROPIC_DEFAULT_HAIKU_MODEL` still apply to chats but do not
+  change the list, so no model disappears from it.
+- **Every Claude 5 model runs at 1M**, including families the plugin does not
+  name, such as Mythos.
 - **Titles and summaries work with a custom endpoint**: title, summary and
   generate requests start Claude Code without setting sources, so the `env`
   block of `~/.claude/settings.json` (for example `ANTHROPIC_BASE_URL` and
