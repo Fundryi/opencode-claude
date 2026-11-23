@@ -9,7 +9,7 @@
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["bun", "node"]
+    "types": ["node"]
   },
   "include": ["src"]
 }

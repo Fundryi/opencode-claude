@@ -49,6 +49,8 @@ export async function updateAgentSdk(
   const root = dirname(dirname(moduleFile));
   const installed = installedVersion(root);
   if (!installed) return;
+  const lock = join(root, "node_modules", ".sdk-update.lock");
+  let locked = false;
   try {
     const res = await fetch(`https://registry.npmjs.org/${SDK_PACKAGE}/latest`, {
       signal: AbortSignal.timeout(15_000),
@@ -56,8 +58,8 @@ export async function updateAgentSdk(
     if (!res.ok) return;
     const latest = ((await res.json()) as { version?: unknown }).version;
     if (typeof latest !== "string" || latest === installed) return;
-    const lock = join(root, "node_modules", ".sdk-update.lock");
     if (!takeLock(lock)) return;
+    locked = true;
     if (installedVersion(root) === latest) {
       releaseLock(lock);
       return;
@@ -78,7 +80,7 @@ export async function updateAgentSdk(
       if (code === 0) {
         log.warn("[opencode-claude] Claude Agent SDK updated; used after the next restart", {
           from: installed,
-          to: latest,
+          to: installedVersion(root),
         });
       } else {
         log.warn("[opencode-claude] Claude Agent SDK update failed", { to: latest, code });
@@ -86,6 +88,7 @@ export async function updateAgentSdk(
     });
     child.unref();
   } catch (err) {
+    if (locked) releaseLock(lock);
     log.warn(
       "[opencode-claude] could not check for a newer Claude Agent SDK",
       err instanceof Error ? err.message : err,

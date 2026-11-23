@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.7.2 - 2026-11-23
+
+- **Runs in OpenChamber's Node server**: the local proxy used `Bun.serve`, so
+  OpenChamber's bundled OpenCode, which loads plugins in Node, failed with
+  "Bun is not defined". It now serves through `node:http`, which Bun runs
+  too. Stopping a chat before Claude's first output now stops the turn.
+- **Gateway limits are read correctly**: a gateway's `Request rejected (429)`
+  counts as a rate limit, and its "reset after 2h 8m" sets the countdown, so
+  the plugin waits for the real reset instead of retrying every 10 minutes.
+- **A gateway 502 or 503 mid-answer is retried**: it used to end the answer
+  with the error as text, which also let a broken compaction summary through.
+  OpenCode now gets a retryable error.
+- **Models no longer vanish when one model list times out**: the plugin keeps
+  the last good list until both lists load.
+- **No duplicate picker entries** for models the CLI lists both with and
+  without `[1m]`.
+- **Fuller summaries on 1M models**: when a summary can't resume the Claude
+  session, it rebuilds the chat as text within a budget. 1M models without a
+  `[1m]` id, such as Opus 5.5, got a fifth of it; they now get the full one.
+- `sessions.json` is written through a temporary file, so a crash mid-write
+  can no longer wipe every chat's link to its Claude session.
+
 ## 1.7.1 - 2026-11-11
 
 - **Gateway models in the picker**: when `ANTHROPIC_BASE_URL` (environment or

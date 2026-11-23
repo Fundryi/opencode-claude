@@ -157,7 +157,7 @@ export function isClaudeRateLimitText(text: string): boolean {
     /\b(hit|reached) your [^·\n]*?limit/i.test(text) ||
     /usage limit reached/i.test(text) ||
     /rate[ _-]?limit/i.test(text) ||
-    /API Error:\s*429\b/i.test(text) ||
+    /API Error:\s*(?:Request rejected \()?429\b/i.test(text) ||
     /too many requests/i.test(text)
   );
 }
@@ -221,6 +221,21 @@ export function parseResetTimeFromText(
   text: string,
   now: number = Date.now(),
 ): number | undefined {
+  return parseAbsoluteResetTime(text, now) ?? parseRelativeResetTime(text, now);
+}
+
+function parseRelativeResetTime(text: string, now: number): number | undefined {
+  const relative = /resets?\s+(?:after|in)\s+(\d+\s*[dhms](?![a-z])(?:\s*\d+\s*[dhms](?![a-z]))*)/i.exec(text);
+  if (!relative) return undefined;
+  const unitMs: Record<string, number> = { d: 86_400_000, h: 3_600_000, m: 60_000, s: 1_000 };
+  let ms = 0;
+  for (const [, n, unit] of relative[1]!.matchAll(/(\d+)\s*([dhms])/gi)) {
+    ms += Number(n) * unitMs[unit!.toLowerCase()]!;
+  }
+  return ms > 0 && ms <= 8 * 86_400_000 ? now + ms : undefined;
+}
+
+function parseAbsoluteResetTime(text: string, now: number): number | undefined {
   // ISO-ish absolute timestamp; a trailing " UTC" stands for "Z".
   const iso =
     /resets?\s+(?:at\s+)?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?)(\s*UTC\b)?/i.exec(

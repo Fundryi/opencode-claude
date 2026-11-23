@@ -557,6 +557,7 @@ async function main() {
     const fromCli = modelsFromSdk([
       { value: "default", displayName: "Default (recommended)", resolvedModel: "claude-opus-5-5", supportedEffortLevels: ["low", "high"] },
       { value: "opus", displayName: "Opus 5.5", resolvedModel: "claude-opus-5-5", supportedEffortLevels: ["low", "high"] },
+      { value: "claude-fable-5-2[1m]", displayName: "Fable", resolvedModel: "claude-fable-5-2" },
       { value: "sonnet", displayName: "Sonnet 5", resolvedModel: "claude-sonnet-5", supportedEffortLevels: ["low", "high"] },
       { value: "claude-opus-4-8", displayName: "Opus 4.8", resolvedModel: "claude-opus-4-8" },
       { value: "haiku", displayName: "Haiku 4.5", resolvedModel: "claude-haiku-4-5-20251001" },
@@ -564,6 +565,7 @@ async function main() {
       { value: "claude-sonnet-4-6", displayName: "Sonnet 4.6", resolvedModel: "claude-sonnet-4-6" },
       { value: "claude-mythos-5-2", resolvedModel: "claude-mythos-5-2", supportedEffortLevels: ["low", "high"] },
       { value: "cc/claude-mythos-5-2", resolvedModel: "cc/claude-mythos-5-2" },
+      { value: "claude-fable-5-2", displayName: "Fable 5.2", resolvedModel: "claude-fable-5-2" },
       { value: "claude-opus-5-5-high", resolvedModel: "claude-opus-5-5-high" },
       { value: "claude-mem-haiku-api", resolvedModel: "claude-mem-haiku-api" },
     ]);
@@ -572,6 +574,7 @@ async function main() {
       fromCli.map((m) => m.id),
       [
         "claude-opus-5-5",
+        "claude-fable-5-2",
         "claude-sonnet-5",
         "claude-opus-4-8",
         "claude-haiku-4-5-20251001",

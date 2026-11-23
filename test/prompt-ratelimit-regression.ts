@@ -27,6 +27,7 @@ import {
   recordRateLimitErrorText,
   recordRateLimitInfo,
 } from "../src/rate-limit.ts";
+import { classifyClaudeFailure } from "../src/failure.ts";
 
 const MINUTE = 60_000;
 
@@ -80,9 +81,20 @@ async function main() {
       isClaudeRateLimitText("You've hit your weekly limit · resets Oct 6, 1pm (UTC)"),
       true,
     );
+    const gatewayLimit =
+      "API Error: Request rejected (429) · Service temporarily unavailable: all targets were skipped by pre-dispatch filters reset after 2h 8m 4s";
+    assert.equal(isClaudeRateLimitText(gatewayLimit), true);
+    assert.equal(classifyClaudeFailure("API Error: 502 Bad Gateway. This is a server-side issue"), "overloaded");
+    assert.equal(classifyClaudeFailure("API Error: Request rejected (503) · upstream error"), "overloaded");
+    assert.notEqual(classifyClaudeFailure('API Error: 400 {"message":"Tool reported API Error: 503"}'), "overloaded");
 
     // --- Reset parsing: hours-only and midnight (every 5-minute scan phase)
     const base = Date.UTC(2026, 0, 1, 10, 0);
+    assert.equal(parseResetTimeFromText(gatewayLimit, base), base + (2 * 60 + 8) * MINUTE + 4_000);
+    assert.equal(parseResetTimeFromText("resets in 45m", base), base + 45 * MINUTE);
+    assert.equal(parseResetTimeFromText("resets in 5 (UTC)", base), undefined);
+    assert.equal(parseResetTimeFromText("password resets in 90d", base), undefined);
+    assert.equal(parseResetTimeFromText("resets 5pm (UTC) · limit resets in 2m", base), Date.UTC(2026, 0, 1, 17, 0));
     const fivePm = parseResetTimeFromText("You've hit your session limit · resets 5pm (UTC)", base);
     assert.ok(fivePm !== undefined, "hours-only reset must parse");
     assert.ok(Math.abs(fivePm! - Date.UTC(2026, 0, 1, 17, 0)) <= 2 * MINUTE);

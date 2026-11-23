@@ -155,6 +155,17 @@ async function main() {
       assert.doesNotMatch(text, /ede_diagnostic/);
       assert.equal(text.match(/API Error: 500 boom/g)?.length, 1);
     }
+
+    failWith(
+      [textDelta("partial answer"), { type: "result", subtype: "error_during_execution", is_error: true, errors: ["API Error: 502 Bad Gateway"] }],
+      "Claude Code returned an error result: API Error: 502 Bad Gateway",
+    );
+    {
+      const res = await post("mid-stream-gateway", { stream: true, messages: [{ role: "user", content: "hi" }] });
+      const text = await res.text();
+      assert.match(text, /"code":"server_error"/);
+      assert.doesNotMatch(text, /\[claude-code error\]/);
+    }
   } finally {
     proxy.setClaudeQueryStarter(null);
     await proxy.stopProxy();

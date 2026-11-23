@@ -9,6 +9,8 @@
  * tool_calls; the follow-up request with tool results resumes the turn.
  */
 import { createHash, randomUUID } from "node:crypto";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { Readable } from "node:stream";
 import { currentHost, mcpToolName, openCodeToolName } from "./host.js";
 import {
   mcpInstructions,
@@ -190,21 +192,9 @@ function turnStallMs(): number {
   return Number.isFinite(raw) && raw >= 1_000 ? raw : 600_000;
 }
 
-/**
- * Bun.serve defaults to 10s and RSTs idle sockets. OpenCode maps that to a
- * retryable "Connection reset by server". This proxy holds the HTTP response
- * until the Claude turn proves alive, and SSE can pause during thinking —
- * both exceed 10s easily. 0 disables the timer (same as OpenCode's adapter).
- */
 export const PROXY_IDLE_TIMEOUT_SECONDS = 0;
 export const SSE_HEARTBEAT_MS = 5_000;
 
-/**
- * Optional pinned port via OPENCODE_CLAUDE_PROXY_PORT.
- * Default is `0` — Bun binds an ephemeral free port; the live URL is then
- * published through the config hook so OpenCode always hits the
- * process that owns the listener (no static 8787 requirement).
- */
 const REQUESTED_PROXY_PORT: number = (() => {
   const raw = process.env.OPENCODE_CLAUDE_PROXY_PORT;
   const parsed = raw ? Number(raw) : NaN;
@@ -248,8 +238,92 @@ type ChatCompletionRequest = {
   temperature?: number;
 };
 
-let server: ReturnType<typeof Bun.serve> | null = null;
+type ProxyServer = { port: number | undefined; stop(closeActiveConnections?: boolean): void };
+
+let server: ProxyServer | null = null;
 let proxyPort: number | null = null;
+
+async function toWebRequest(req: IncomingMessage, hostname: string): Promise<Request> {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value === undefined) continue;
+    for (const item of Array.isArray(value) ? value : [value]) headers.append(key, item);
+  }
+  const method = req.method ?? "GET";
+  const hasBody = method !== "GET" && method !== "HEAD";
+  return new Request(`http://${req.headers.host ?? hostname}${req.url ?? "/"}`, {
+    method,
+    headers,
+    body: hasBody ? (Readable.toWeb(req) as ReadableStream<Uint8Array>) : undefined,
+    duplex: "half",
+  } as RequestInit);
+}
+
+async function sendWebResponse(res: ServerResponse, response: Response): Promise<void> {
+  const headers: Record<string, string[]> = {};
+  response.headers.forEach((value, key) => {
+    (headers[key] ??= []).push(value);
+  });
+  res.writeHead(response.status, headers);
+  res.flushHeaders();
+  if (!response.body) {
+    res.end();
+    return;
+  }
+  const reader = response.body.getReader();
+  const cancel = () => void reader.cancel().catch(() => {});
+  res.once("close", () => {
+    if (!res.writableFinished) cancel();
+  });
+  for (;;) {
+    if (res.destroyed) return cancel();
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (res.destroyed) return cancel();
+    if (!res.write(value)) {
+      await new Promise<void>((resolve) => {
+        const resume = () => {
+          res.off("drain", resume);
+          res.off("close", resume);
+          resolve();
+        };
+        res.once("drain", resume);
+        res.once("close", resume);
+      });
+    }
+  }
+  res.end();
+}
+
+function listen(hostname: string, port: number): Promise<ProxyServer> {
+  const httpServer = createServer((req, res) => {
+    toWebRequest(req, hostname)
+      .then(handleRequest)
+      .then((response) => sendWebResponse(res, response))
+      .catch((err) => {
+        log.error("[opencode-claude] proxy request failed", err instanceof Error ? err.message : err);
+        if (res.headersSent) res.destroy();
+        else res.writeHead(500).end();
+      });
+  });
+  httpServer.timeout = PROXY_IDLE_TIMEOUT_SECONDS * 1000;
+  httpServer.requestTimeout = 0;
+  httpServer.keepAliveTimeout = 0;
+  return new Promise((resolve, reject) => {
+    httpServer.once("error", reject);
+    httpServer.listen(port, hostname, () => {
+      httpServer.off("error", reject);
+      const address = httpServer.address();
+      resolve({
+        port: typeof address === "object" && address ? address.port : undefined,
+        stop(closeActiveConnections = true) {
+          httpServer.close();
+          if (closeActiveConnections) httpServer.closeAllConnections();
+        },
+      });
+    });
+  });
+}
 
 /** Injectable for smoke tests — production path always uses startClaudeQuery. */
 let queryStarter: typeof startClaudeQuery = startClaudeQuery;
@@ -320,8 +394,17 @@ async function isProxyHealthyAt(baseUrl: string): Promise<boolean> {
   }
 }
 
-export async function startProxy(): Promise<number> {
-  if (server && proxyPort) return proxyPort;
+let starting: Promise<number> | null = null;
+
+export function startProxy(): Promise<number> {
+  if (server && proxyPort) return Promise.resolve(proxyPort);
+  starting ??= bindProxy().finally(() => {
+    starting = null;
+  });
+  return starting;
+}
+
+async function bindProxy(): Promise<number> {
 
   // Only reuse a sibling listener when the operator pinned a port.
   if (REQUESTED_PROXY_PORT > 0) {
@@ -337,14 +420,7 @@ export async function startProxy(): Promise<number> {
   const bindPort = REQUESTED_PROXY_PORT; // 0 → ephemeral
 
   try {
-    server = Bun.serve({
-      hostname,
-      port: bindPort,
-      idleTimeout: PROXY_IDLE_TIMEOUT_SECONDS,
-      async fetch(req) {
-        return handleRequest(req);
-      },
-    });
+    server = await listen(hostname, bindPort);
     proxyPort = server.port ?? null;
     if (!proxyPort) {
       throw new Error("Failed to bind Claude proxy to a port");
@@ -643,7 +719,8 @@ type SummaryResumePoint = {
  * the request to that window, so this only guards against a runaway one.
  */
 function summaryHistoryMaxChars(model: string): number {
-  return (/\[1m\]$/i.test(model) ? 1_000_000 : 200_000) * 3;
+  const window = getClaudeModels().find((m) => m.id === model)?.contextWindow;
+  return (window ?? (/\[1m\]$/i.test(model) ? 1_000_000 : 200_000)) * 3;
 }
 
 const SUMMARY_NUDGE_MARKER = "did not fill in the required summary template";
@@ -2721,7 +2798,8 @@ function streamOpenAIResponse(
         const norm = normalizeClaudeErrorText(text);
         if (!norm || norm === lastErrorNorm) return;
         lastErrorNorm = norm;
-        if (classifyClaudeFailure(text) === "rate_limit") {
+        const kind = classifyClaudeFailure(text);
+        if (kind === "rate_limit" || kind === "overloaded") {
           // The HTTP head is already committed after earlier agent output, so
           // a late 429 is impossible. Send an OpenAI-compatible stream error.
           // Its JSON-string message is understood by OpenCode's stream-error
@@ -2738,7 +2816,7 @@ function streamOpenAIResponse(
                 },
               }),
               type: "error",
-              code: "claude_session_limit",
+              code: kind === "rate_limit" ? "claude_session_limit" : "server_error",
             },
           });
           return;

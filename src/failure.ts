@@ -52,7 +52,8 @@ const IMAGE_FAILURE_PATTERN =
 const REFUSAL_PATTERN = /^Claude declined this request\b/;
 
 /** Prefix of the proxy's own text for a 5xx the CLI reported as success. */
-const OVERLOADED_PATTERN = /^Anthropic (?:is overloaded|returned 5\d\d)\b/;
+const OVERLOADED_PATTERN =
+  /^Anthropic (?:is overloaded|returned 5\d\d)\b|^(?:(?!API Error:)[\s\S])*API Error:\s*(?:50[234]\b|Request rejected \(50[234]\))/;
 
 export function classifyClaudeFailure(text: string): ClaudeFailureKind {
   if (!text) return "unknown";

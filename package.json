@@ -1,6 +1,6 @@
 {
   "name": "@fundryi/opencode-claude",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "Claude Code in OpenCode — local CLI auth, Agent SDK harness, effort variants, tools/MCP, images & compact.",
   "license": "MIT",
   "type": "module",
@@ -54,7 +54,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.322",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.330",
     "zod": "^4.4.3"
   },
   "devDependencies": {

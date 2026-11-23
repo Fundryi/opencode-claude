@@ -125,9 +125,11 @@ export function modelsFromSdk(rows: SdkModelRow[]): ClaudeModel[] {
     // instead of moving when the CLI's `opus` alias points somewhere new.
     const family = (row.resolvedModel || value).replace(/\[1m\]$/i, "");
     const base = family;
-    const rule = /\[1m\]$/i.test(value)
-      ? { mode: "default" as const }
-      : ONE_M_FAMILIES.find((f) => f.match.test(family));
+    const familyRule = ONE_M_FAMILIES.find((f) => f.match.test(family));
+    const rule =
+      /\[1m\]$/i.test(value) && familyRule?.mode !== "fixed"
+        ? { mode: "default" as const }
+        : familyRule;
     if (rule?.mode === "default") {
       out.push(model(`${base}[1m]`, name, LIMIT_1M, undefined, efforts));
     } else if (rule?.mode === "fixed") {
@@ -160,6 +162,10 @@ let discovered: ClaudeModel[] | null = readCachedModels();
 
 function buildCatalog(): ClaudeModel[] {
   return discovered?.length ? discovered : FALLBACK_MODELS;
+}
+
+export function hasDiscoveredModels(): boolean {
+  return discovered !== null;
 }
 
 export function getClaudeModels(): ClaudeModel[] {

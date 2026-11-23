@@ -11,6 +11,8 @@ import {
   readFileSync,
   readSync,
   readdirSync,
+  renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
@@ -83,7 +85,17 @@ function readStore(): Record<string, ClaudeSessionBinding> {
 function writeStore(store: Record<string, ClaudeSessionBinding>): void {
   const path = storePath();
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(store, null, 2) + "\n", "utf8");
+  const text = JSON.stringify(store, null, 2) + "\n";
+  const tmp = `${path}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tmp, text, { encoding: "utf8", mode: 0o600 });
+    renameSync(tmp, path);
+  } catch {
+    try {
+      rmSync(tmp, { force: true });
+    } catch {}
+    writeFileSync(path, text, "utf8");
+  }
 }
 
 export function getForeignSessionId(

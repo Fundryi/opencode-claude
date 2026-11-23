@@ -11,6 +11,7 @@ import {
   resolveClaudeCodeExecutable,
 } from "./executable-path.js";
 import { log } from "./log.js";
+import { hasDiscoveredModels } from "./models.js";
 
 type SdkModule = typeof import("@anthropic-ai/claude-agent-sdk");
 
@@ -582,12 +583,12 @@ export async function listClaudeSupportedModels(
 ): Promise<unknown[] | null> {
   const gateway = gatewayProbeEnv(process.env);
   if (!Object.keys(gateway).length) return probeSupportedModels({}, timeoutMs);
-  const [own, discovered] = await Promise.all([
-    probeSupportedModels({}, timeoutMs),
-    probeSupportedModels(gateway, timeoutMs),
+  const [own, fromGateway] = await Promise.all([
+    probeSupportedModels({}, timeoutMs).catch(() => null),
+    probeSupportedModels(gateway, timeoutMs).catch(() => null),
   ]);
-  if (!own && !discovered) return null;
-  return [...(own ?? []), ...(discovered ?? [])];
+  if (!own || !fromGateway) return hasDiscoveredModels() ? null : (own ?? fromGateway);
+  return [...own, ...fromGateway];
 }
 
 async function probeSupportedModels(
